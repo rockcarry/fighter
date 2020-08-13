@@ -2,10 +2,11 @@
 #include <stdio.h>
 #include <conio.h>
 #include "platform.h"
+#include "sprite.h"
 
-void render_game(int x, int y, uint8_t *sprite)
+void render_game(SPRITE *sprite)
 {
-    int sw, sh, tx, ty, i, j;
+    int x, y, i, j;
 
     // draw background
     for (i=0; i<SCREEN_HEIGHT; i++) {
@@ -15,13 +16,11 @@ void render_game(int x, int y, uint8_t *sprite)
     }
 
     // draw sprite
-    sw = sprite[0];
-    sh = sprite[1];
-    for (i=0; i<sh; i++) {
-        for (j=0; j<sw; j++) {
-            tx = x + j; ty = y + i;
-            if (tx < SCREEN_WIDTH && ty < SCREEN_HEIGHT && sprite[2 + i * sw + j] != ' ') {
-                tile(tx, ty, sprite[2 + sw * sh + i * sw + j], sprite[2 + i * sw + j]);
+    for (i=0; i<sprite->h; i++) {
+        for (j=0; j<sprite->w; j++) {
+            x = sprite->x + j; y = sprite->y + i;
+            if (x < SCREEN_WIDTH && y < SCREEN_HEIGHT && sprite->data[i * sprite->w + j] != ' ') {
+                tile(x, y, sprite->data[sprite->w * sprite->h + i * sprite->w + j], sprite->data[i * sprite->w + j]);
             }
         }
     }
@@ -29,32 +28,27 @@ void render_game(int x, int y, uint8_t *sprite)
 
 int main(void)
 {
-    int quit = 0, x = SCREEN_WIDTH/2, y = SCREEN_HEIGHT-2, sleeptick;
+    int      sleeptick = 0, quit = 0;
     uint32_t next_tick = 0;
-    uint8_t sprite[2 + 2 * 3 * 2] = {
-        3, 2,
-        ' ', '#', ' ',
-        'A', '@', 'A',
-        0x00, 0x0F, 0x00,
-        0x0A, 0x0E, 0x0A,
-    };
+    SPRITE  *sprite    = NULL;
 
     platform_init();
+    sprite = sprite_load("sprite.ini");
 
     while (!quit) {
-        render_game(x, y, sprite); vpost(); // render game
+        render_game(sprite); vpost(); // render game
 
         // handle input
         if (getkey('Q') || getkey('q')) {
             quit = 1; 
         } else if (getkey('E') || getkey('e')) {
-            if (y > 0) y--;
+            if (sprite->y > 0) sprite->y--;
         } else if (getkey('D') || getkey('d')) {
-            if (y < SCREEN_HEIGHT - sprite[1]) y++;
+            if (sprite->y < SCREEN_HEIGHT - sprite->h) sprite->y++;
         } else if (getkey('S') || getkey('s')) {
-            if (x > 0) x--;
+            if (sprite->x > 0) sprite->x--;
         } else if (getkey('F') || getkey('f')) {
-            if (x < SCREEN_WIDTH - sprite[0]) x++;
+            if (sprite->x < SCREEN_WIDTH  - sprite->w) sprite->x++;
         }
 
         // frame rate control
@@ -63,6 +57,7 @@ int main(void)
         if (sleeptick > 0) usleep(sleeptick);
     }
 
+    sprite_destroy(sprite);
     platform_exit();
     return 0;
 }
