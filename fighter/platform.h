@@ -3,6 +3,10 @@
 
 #ifdef WIN32
 #include <windows.h>
+
+// disable warnings
+#pragma warning(disable:4996)
+
 #define usleep(t)       Sleep((t) / 1000)
 #define get_tick_count  GetTickCount
 
