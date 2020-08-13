@@ -42,14 +42,17 @@ static char* str_get_token(const char *str, char *token, int len)
     return p;
 }
 
-SPRITE* sprite_create(int w, int h)
+SPRITE* sprite_new(int w, int h)
 {
     SPRITE *sprite = NULL;
     if (w <= 0 || h <= 0) return NULL;
     sprite = calloc(1, sizeof(SPRITE) + w * h * 2);
     if (!sprite) return NULL;
-    sprite->w    = w;
-    sprite->h    = h;
+    sprite->w = w;
+    sprite->h = h;
+    sprite->flags       |= SPRITE_COLLISION_REBOUND;
+    sprite->bound_right  = SCREEN_WIDTH  - 1;
+    sprite->bound_bottom = SCREEN_HEIGHT - 1;
     sprite->data = (uint8_t*)sprite + sizeof(SPRITE);
     memset(sprite->data, ' ', w * h);
     return sprite;
@@ -76,7 +79,7 @@ SPRITE* sprite_load(char *file)
 
     parse_params(fdata, "width" , str, sizeof(str)); w = atoi(str);
     parse_params(fdata, "height", str, sizeof(str)); h = atoi(str);
-    sprite = sprite_create(w, h);
+    sprite = sprite_new(w, h);
     if (!sprite) goto done;
 
     p = strstr(fdata, "data"); while (*p && *p != '\n') p++;
@@ -133,7 +136,83 @@ int sprite_save(char *file, SPRITE *sprite)
     return 0;
 }
 
-void sprite_destroy(SPRITE *sprite)
+int sprite_free(SPRITE *sprite, int n)
 {
-    if (sprite) free(sprite);
+    int k = 0;
+    while (sprite && ++k != n) {
+        SPRITE *next = sprite->next;
+        sprite_remove(sprite, 1);
+        sprite = next;
+    }
+    return k;
+}
+
+int sprite_draw(SPRITE *sprite, int n)
+{
+    int i, j, k = 0;
+    while (sprite && ++k != n) {
+        for (i=0; i<sprite->h; i++) {
+            for (j=0; j<sprite->w; j++) {
+                int x = sprite->x + j;
+                int y = sprite->y + i;
+                if (x < SCREEN_WIDTH && y < SCREEN_HEIGHT && sprite->data[i * sprite->w + j] != ' ') {
+                    tile(x, y, sprite->data[sprite->w * sprite->h + i * sprite->w + j], sprite->data[i * sprite->w + j]);
+                }
+            }
+        }
+        sprite = sprite->next;
+    }
+    return k;
+}
+
+void sprite_insert(SPRITE *sprite1, SPRITE *sprite2)
+{
+    if (sprite1->next) sprite1->next->prev = sprite2;
+    sprite2->next = sprite1->next;
+    sprite2->prev = sprite1;
+    sprite1->next = sprite2;
+}
+
+void sprite_remove(SPRITE *sprite, int f)
+{
+    if (sprite->next) sprite->next->prev = sprite->prev;
+    if (sprite->prev) sprite->prev->next = sprite->next;
+    if (f) free(sprite);
+}
+
+int sprite_run(SPRITE *sprite, int n)
+{
+    int k = 0;
+    while (sprite && ++k != n) {
+        sprite->tx += sprite->vx;
+        sprite->ty += sprite->vy;
+        if (abs(sprite->tx) >= (1 << 16)) {
+            sprite->x += sprite->tx > 0 ? 1 : -1;
+            sprite->tx-= sprite->tx > 0 ? (1 << 16) : -(1 << 16);
+        }
+        if (abs(sprite->ty) >= (1 << 17)) {
+            sprite->y += sprite->ty > 0 ? 1 : -1;
+            sprite->ty-= sprite->ty > 0 ? (1 << 17) : -(1 << 17);
+        }
+        sprite->vx += sprite->ax;
+        sprite->vy += sprite->ay;
+        if (sprite->vx > 0x40000000) sprite->vx = 0x40000000;
+        if (sprite->vx <-0x40000000) sprite->vx =-0x40000000;
+        if (sprite->vy > 0x40000000) sprite->vy = 0x40000000;
+        if (sprite->vy <-0x40000000) sprite->vy =-0x40000000;
+        if (sprite->flags & SPRITE_COLLISION_REBOUND) {
+            if (sprite->x <= sprite->bound_left && sprite->tx <= 0 || sprite->x > sprite->bound_right  && sprite->tx > 0) sprite->vx = -sprite->vx;
+            if (sprite->y <= sprite->bound_top  && sprite->ty <= 0 || sprite->y > sprite->bound_bottom && sprite->ty > 0) sprite->vy = -sprite->vy;
+        }
+        if (sprite->flags & SPRITE_COLLISION_DESTROY) {
+            if (  sprite->x < sprite->bound_left || sprite->x > sprite->bound_right
+               || sprite->y < sprite->bound_top  || sprite->y > sprite->bound_bottom) {
+                SPRITE *prev = sprite->prev;
+                sprite_remove(sprite, 1);
+                sprite = prev;
+            }
+        }
+        if (sprite) sprite = sprite->next;
+    }
+    return k;
 }

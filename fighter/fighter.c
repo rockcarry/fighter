@@ -6,7 +6,7 @@
 
 void render_game(SPRITE *sprite)
 {
-    int x, y, i, j;
+    int i, j;
 
     // draw background
     for (i=0; i<SCREEN_HEIGHT; i++) {
@@ -16,24 +16,28 @@ void render_game(SPRITE *sprite)
     }
 
     // draw sprite
-    for (i=0; i<sprite->h; i++) {
-        for (j=0; j<sprite->w; j++) {
-            x = sprite->x + j; y = sprite->y + i;
-            if (x < SCREEN_WIDTH && y < SCREEN_HEIGHT && sprite->data[i * sprite->w + j] != ' ') {
-                tile(x, y, sprite->data[sprite->w * sprite->h + i * sprite->w + j], sprite->data[i * sprite->w + j]);
-            }
-        }
-    }
+    sprite_run (sprite, -1);
+    sprite_draw(sprite, -1);
 }
 
 int main(void)
 {
-    int      sleeptick = 0, quit = 0;
+    int      sleeptick = 0, quit = 0, i;
     uint32_t next_tick = 0;
     SPRITE  *sprite    = NULL;
 
     platform_init();
     sprite = sprite_load("sprite.ini");
+    for (i=0; i<6; i++) {
+        SPRITE *s = sprite_new(1, 1);
+        s->data[0] = 'A' + rand() % 26;
+        s->data[1] = 0x0F;
+        s->x       = rand() % SCREEN_WIDTH ;
+        s->y       = rand() % SCREEN_HEIGHT;
+        s->vx      = rand();
+        s->vy      = rand();
+        sprite_insert(sprite, s);
+    }
 
     while (!quit) {
         render_game(sprite); vpost(); // render game
@@ -57,7 +61,7 @@ int main(void)
         if (sleeptick > 0) usleep(sleeptick);
     }
 
-    sprite_destroy(sprite);
+    sprite_free(sprite, -1);
     platform_exit();
     return 0;
 }
