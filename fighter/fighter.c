@@ -28,7 +28,10 @@ int main(void)
 
     platform_init();
     sprite = sprite_load("sprite.ini");
-    for (i=0; i<6; i++) {
+    sprite->x     = sprite->bound_right / 2;
+    sprite->y     = sprite->bound_bottom;
+    sprite->flags = SPRITE_COLLISION_BOUNDED;
+    for (i=0; i<2; i++) {
         SPRITE *s = sprite_new(1, 1);
         s->data[0] = 'A' + rand() % 26;
         s->data[1] = 0x0F;
@@ -46,13 +49,24 @@ int main(void)
         if (getkey('Q') || getkey('q')) {
             quit = 1; 
         } else if (getkey('E') || getkey('e')) {
-            if (sprite->y > 0) sprite->y--;
+            sprite->vy =-(1 << 16); sprite->vx = 0;
         } else if (getkey('D') || getkey('d')) {
-            if (sprite->y < SCREEN_HEIGHT - sprite->h) sprite->y++;
+            sprite->vy = (1 << 16); sprite->vx = 0;
         } else if (getkey('S') || getkey('s')) {
-            if (sprite->x > 0) sprite->x--;
+            sprite->vx =-(1 << 16); sprite->vy = 0;
         } else if (getkey('F') || getkey('f')) {
-            if (sprite->x < SCREEN_WIDTH  - sprite->w) sprite->x++;
+            sprite->vx = (1 << 16); sprite->vy = 0;
+        } else if (getkey(' ') || getkey(' ')) {
+            SPRITE *s = sprite_new(1, 1);
+            s->data[0] = '.';
+            s->data[1] = 0x0F;
+            s->x = sprite->x + sprite->w / 2;
+            s->y = sprite->y;
+            s->vy=-(1 << 16);
+            s->flags = SPRITE_COLLISION_DESTROY;
+            sprite_insert(sprite, s);
+        } else {
+            sprite->vx = sprite->vy = 0;
         }
 
         // frame rate control
