@@ -19,7 +19,7 @@ typedef unsigned int   uint32_t;
 #endif
 
 #define SCREEN_WIDTH    80
-#define SCREEN_HEIGHT   25
+#define SCREEN_HEIGHT   26
 
 void platform_init(void);
 void platform_exit(void);
