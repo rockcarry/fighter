@@ -12,15 +12,14 @@ typedef struct tagSPRITE {
     int32_t  vy;
     int32_t  ax;
     int32_t  ay;
-    int32_t  tx;
-    int32_t  ty;
     int32_t  bound_left;
     int32_t  bound_top;
     int32_t  bound_right;
     int32_t  bound_bottom;
     uint8_t *data;
-    #define SPRITE_COLLISION_REBOUND  (1 << 0)
-    #define SPRITE_COLLISION_DESTROY  (1 << 1)
+    #define SPRITE_COLLISION_BOUNDED  (1 << 0)
+    #define SPRITE_COLLISION_REBOUND  (1 << 1)
+    #define SPRITE_COLLISION_DESTROY  (1 << 2)
     uint32_t flags;
     struct tagSPRITE *prev;
     struct tagSPRITE *next;

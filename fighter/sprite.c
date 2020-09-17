@@ -48,11 +48,11 @@ SPRITE* sprite_new(int w, int h)
     if (w <= 0 || h <= 0) return NULL;
     sprite = calloc(1, sizeof(SPRITE) + w * h * 2);
     if (!sprite) return NULL;
-    sprite->w = w;
-    sprite->h = h;
+    sprite->w = w << 16;
+    sprite->h = h << 17;
     sprite->flags       |= SPRITE_COLLISION_REBOUND;
-    sprite->bound_right  = SCREEN_WIDTH  - 1;
-    sprite->bound_bottom = SCREEN_HEIGHT - 1;
+    sprite->bound_right  = SCREEN_WIDTH  << 16;
+    sprite->bound_bottom = SCREEN_HEIGHT << 17;
     sprite->data = (uint8_t*)sprite + sizeof(SPRITE);
     memset(sprite->data, ' ', w * h);
     return sprite;
@@ -149,14 +149,16 @@ int sprite_free(SPRITE *sprite, int n)
 
 int sprite_draw(SPRITE *sprite, int n)
 {
-    int i, j, k = 0;
+    int i, j, k = 0, x, y, w, h;
     while (sprite && ++k != n) {
-        for (i=0; i<sprite->h; i++) {
-            for (j=0; j<sprite->w; j++) {
-                int x = sprite->x + j;
-                int y = sprite->y + i;
-                if (x < SCREEN_WIDTH && y < SCREEN_HEIGHT && sprite->data[i * sprite->w + j] != ' ') {
-                    tile(x, y, sprite->data[sprite->w * sprite->h + i * sprite->w + j], sprite->data[i * sprite->w + j]);
+        w = (sprite->w >> 16);
+        h = (sprite->h >> 17);
+        for (i=0; i<h; i++) {
+            for (j=0; j<w; j++) {
+                x = (sprite->x >> 16) + j;
+                y = (sprite->y >> 17) + i;
+                if (x < SCREEN_WIDTH && y < SCREEN_HEIGHT && sprite->data[i * w + j] != ' ') {
+                    tile(x, y, sprite->data[w * h + i * w + j], sprite->data[i * w + j]);
                 }
             }
         }
@@ -184,35 +186,31 @@ int sprite_run(SPRITE *sprite, int n)
 {
     int k = 0;
     while (sprite && ++k != n) {
-        sprite->tx += sprite->vx;
-        sprite->ty += sprite->vy;
-        if (abs(sprite->tx) >= (1 << 16)) {
-            sprite->x += sprite->tx > 0 ? 1 : -1;
-            sprite->tx-= sprite->tx > 0 ? (1 << 16) : -(1 << 16);
-        }
-        if (abs(sprite->ty) >= (1 << 17)) {
-            sprite->y += sprite->ty > 0 ? 1 : -1;
-            sprite->ty-= sprite->ty > 0 ? (1 << 17) : -(1 << 17);
-        }
+        sprite->x  += sprite->vx;
+        sprite->y  += sprite->vy;
         sprite->vx += sprite->ax;
         sprite->vy += sprite->ay;
         if (sprite->vx > 0x40000000) sprite->vx = 0x40000000;
         if (sprite->vx <-0x40000000) sprite->vx =-0x40000000;
         if (sprite->vy > 0x40000000) sprite->vy = 0x40000000;
         if (sprite->vy <-0x40000000) sprite->vy =-0x40000000;
-        if (sprite->flags & SPRITE_COLLISION_REBOUND) {
-            if (sprite->x <= sprite->bound_left && sprite->tx <= 0 || sprite->x > sprite->bound_right  && sprite->tx > 0) sprite->vx = -sprite->vx;
-            if (sprite->y <= sprite->bound_top  && sprite->ty <= 0 || sprite->y > sprite->bound_bottom && sprite->ty > 0) sprite->vy = -sprite->vy;
-        }
-        if (sprite->flags & SPRITE_COLLISION_DESTROY) {
+        if (sprite->flags & SPRITE_COLLISION_BOUNDED) {
+            sprite->x = sprite->x > sprite->bound_left  ? sprite->x : sprite->bound_left  ;
+            sprite->y = sprite->y > sprite->bound_top   ? sprite->y : sprite->bound_top   ;
+            if (sprite->x + sprite->w > sprite->bound_right ) sprite->x = sprite->bound_right  - sprite->w;
+            if (sprite->y + sprite->h > sprite->bound_bottom) sprite->y = sprite->bound_bottom - sprite->h;
+        } else if (sprite->flags & SPRITE_COLLISION_REBOUND) {
+            if (sprite->x <= sprite->bound_left || sprite->x > sprite->bound_right ) sprite->vx = -sprite->vx;
+            if (sprite->y <= sprite->bound_top  || sprite->y > sprite->bound_bottom) sprite->vy = -sprite->vy;
+        } else if (sprite->flags & SPRITE_COLLISION_DESTROY) {
             if (  sprite->x < sprite->bound_left || sprite->x > sprite->bound_right
                || sprite->y < sprite->bound_top  || sprite->y > sprite->bound_bottom) {
                 SPRITE *prev = sprite->prev;
                 sprite_remove(sprite, 1);
-                sprite = prev;
+                sprite = prev; continue;
             }
         }
-        if (sprite) sprite = sprite->next;
+        sprite = sprite->next;
     }
     return k;
 }
