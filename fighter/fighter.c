@@ -46,17 +46,13 @@ int main(void)
         render_game(sprite); vpost(); // render game
 
         // handle input
-        if (getkey('Q') || getkey('q')) {
-            quit = 1; 
-        } else if (getkey('E') || getkey('e')) {
-            sprite->vy =-(1 << 16); sprite->vx = 0;
-        } else if (getkey('D') || getkey('d')) {
-            sprite->vy = (1 << 16); sprite->vx = 0;
-        } else if (getkey('S') || getkey('s')) {
-            sprite->vx =-(1 << 16); sprite->vy = 0;
-        } else if (getkey('F') || getkey('f')) {
-            sprite->vx = (1 << 16); sprite->vy = 0;
-        } else if (getkey(' ') || getkey(' ')) {
+        sprite->vx = sprite->vy = 0;
+        if (getkey('Q') || getkey('q')) quit = 1;
+        if (getkey('E') || getkey('e')) sprite->vy-= (1 << 16);
+        if (getkey('D') || getkey('d')) sprite->vy+= (1 << 16);
+        if (getkey('S') || getkey('s')) sprite->vx-= (1 << 16);
+        if (getkey('F') || getkey('f')) sprite->vx+= (1 << 16);
+        if (getkey(' ') || getkey(' ')) {
             SPRITE *s = sprite_new(1, 1);
             s->data[0] = '.';
             s->data[1] = 0x0F;
@@ -65,8 +61,6 @@ int main(void)
             s->vy=-(1 << 16);
             s->flags = SPRITE_COLLISION_DESTROY;
             sprite_insert(sprite, s);
-        } else {
-            sprite->vx = sprite->vy = 0;
         }
 
         // frame rate control
